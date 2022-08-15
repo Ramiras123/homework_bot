@@ -33,11 +33,11 @@ handler = logging.StreamHandler()
 
 
 class IsNot200Error(Exception):
-    """Ответ сервер не 200"""
+    """Ответ сервер не 200."""
 
 
 class EmptyDictorListError(Exception):
-    """Пустой словарь или список"""
+    """Пустой словарь или список."""
 
 
 class StatusResponceError(Exception):
@@ -45,7 +45,7 @@ class StatusResponceError(Exception):
 
 
 def send_message(bot, message):
-    """Отправка сообщений"""
+    """Отправка сообщений."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         message_info = f'Сообщение отправлено: {message}'
@@ -56,6 +56,7 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
+    """Получение API с практикума."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
     try:
@@ -80,7 +81,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """Проверка валидности полученных данных"""
+    """Проверка валидности полученных данных."""
     if type(response) == list:
         response = response[0]
     if type(response) != dict:
@@ -101,7 +102,7 @@ def check_response(response):
 
 
 def parse_status(homework):
-    """Проверка статуса задания"""
+    """Проверка статуса задания."""
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status is None:
@@ -117,7 +118,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """Проверка токена на наличие"""
+    """Проверка токена на наличие."""
     is_check_tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
     if None in is_check_tokens:
         message_error = 'Отсутствует критически важная для работы переменная'
