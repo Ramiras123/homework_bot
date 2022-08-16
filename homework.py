@@ -64,7 +64,8 @@ def get_api_answer(current_timestamp):
         )
         status_code = homework.status_code
         if status_code != HTTPStatus.OK:
-            message_error = f'API {ENDPOINT} недоступен, код ошибки {status_code}'
+            message_error = (f'API {ENDPOINT} недоступен, '
+                             f'код ошибки {status_code}')
             raise IsNot200Error(message_error)
         return homework.json()
     except requests.exceptions.RequestException as error_request:
