@@ -5,6 +5,13 @@ import os
 import telegram
 import requests
 import logging
+from http import HTTPStatus
+from exception import (IsNot200Error,
+                       EmptyDictorListError,
+                       StatusResponceError,
+                       ApiError,
+                       JSONDecoderError)
+
 
 load_dotenv()
 
@@ -18,7 +25,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HOMEWORK_STATUSES = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -32,21 +39,11 @@ formatter = logging.Formatter(
 handler = logging.StreamHandler()
 
 
-class IsNot200Error(Exception):
-    """Ответ сервер не 200."""
-
-
-class EmptyDictorListError(Exception):
-    """Пустой словарь или список."""
-
-
-class StatusResponceError(Exception):
-    """Ошибка статуса документа."""
-
-
 def send_message(bot, message):
     """Отправка сообщений."""
     try:
+        message_info = f'Сообщение готово к отправке: {message}'
+        logger.info(message_info)
         bot.send_message(TELEGRAM_CHAT_ID, message)
         message_info = f'Сообщение отправлено: {message}'
         logger.info(message_info)
@@ -66,37 +63,32 @@ def get_api_answer(current_timestamp):
             params=params
         )
         status_code = homework.status_code
-        if status_code != 200:
-            message_error = f'API недоступен, код ошибки {status_code}'
-            logger.error(message_error)
+        if status_code != HTTPStatus.OK:
+            message_error = f'API {ENDPOINT} недоступен, код ошибки {status_code}'
             raise IsNot200Error(message_error)
         return homework.json()
     except requests.exceptions.RequestException as error_request:
         message_error = f'Ошибка в запросе API: {error_request}'
-        logger.error(message_error)
+        raise ApiError(message_error)
     except json.JSONDecodeError as json_error:
         message_error = f'Ошибка json: {json_error}'
-        logger.error(message_error)
-        raise json.JSONDecodeError(message_error)
+        raise JSONDecoderError(message_error) from json_error
 
 
 def check_response(response):
     """Проверка валидности полученных данных."""
-    if type(response) == list:
-        response = response[0]
+    if response['homeworks'] == []:
+        return {}
     if type(response) != dict:
         response_type = type(response)
         message = f'Ответ пришел в неккоректном формате: {response_type}'
-        logger.error(message)
         raise EmptyDictorListError(message)
-    if 'current_date' and 'homeworks' not in response:
+    if 'homeworks' not in response:
         message = 'В ответе отсутствуют необходимые ключи'
-        logger.error(message)
         raise StatusResponceError(message)
     homework = response.get('homeworks')
     if type(homework) != list:
         message = 'Неккоректное значение в ответе у домашней работы'
-        logger.error(message)
         raise StatusResponceError(message)
     return homework
 
@@ -107,20 +99,18 @@ def parse_status(homework):
     homework_status = homework.get('status')
     if homework_status is None:
         message_error = f'Пустой статус: {homework_status}'
-        logger.error(message_error)
         raise StatusResponceError(message_error)
     if homework_name is None:
         message_error = f'Пустое имя работы: {homework_name}'
-        logger.error(message_error)
         raise KeyError(message_error)
-    verdict = HOMEWORK_STATUSES[homework_status]
+    verdict = HOMEWORK_VERDICTS[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def check_tokens():
     """Проверка токена на наличие."""
-    is_check_tokens = [PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID]
-    if None in is_check_tokens:
+    is_check_tokens = all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
+    if not is_check_tokens:
         message_error = 'Отсутствует критически важная для работы переменная'
         logger.critical(message_error)
         return False
